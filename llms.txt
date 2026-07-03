@@ -1,0 +1,111 @@
+# yii3-tenancy
+
+Multi-tenancy core for Yii3: tenant resolution (header/subdomain/path),
+request-scoped CurrentTenant context, scoping primitives. No ORM auto-scoping.
+
+## Install
+
+```bash
+composer require rasuvaeff/yii3-tenancy
+```
+
+## Rules
+
+- Tenant keys from requests are untrusted: every resolver validates against
+  `Tenant::isValidId()` (`/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/`) and returns
+  `null` on mismatch.
+- The core never binds `TenantProvider` in DI — a backend package or the
+  application binds it (exactly one source).
+- Place `TenantResolutionMiddleware` BEFORE authentication middleware.
+- No implicit default tenant: unresolved → 404 unless `passthrough` policy.
+- `TenantScopedCache::clear()` wipes ALL tenants (PSR-16 has no scoped clear).
+
+## API reference
+
+### Tenant (value object)
+
+```php
+use Rasuvaeff\Yii3Tenancy\Tenant;
+use Rasuvaeff\Yii3Tenancy\TenantStatus;
+
+$tenant = new Tenant(
+    id: 'acme',                        // validated, throws InvalidArgumentException
+    name: 'Acme Inc',                  // optional
+    status: TenantStatus::Active,      // Active | Suspended
+    attributes: ['plan' => 'pro'],     // array<string, mixed>
+);
+$tenant->isActive();                   // bool
+Tenant::isValidId('acme');             // static validation helper
+```
+
+### CurrentTenant / RequestCurrentTenant
+
+```php
+use Rasuvaeff\Yii3Tenancy\CurrentTenant;         // interface for readers
+use Rasuvaeff\Yii3Tenancy\RequestCurrentTenant;  // concrete holder for writers
+
+$current = new RequestCurrentTenant();
+$current->set($tenant);        // once per request; second set() throws LogicException
+$current->override($tenant);   // explicit replacement (console/tests)
+$current->get();               // Tenant, throws TenantNotResolvedException
+$current->find();              // ?Tenant
+$current->isResolved();        // bool
+```
+
+### Resolvers (all implement TenantResolver, return ?string)
+
+```php
+use Rasuvaeff\Yii3Tenancy\CompositeTenantResolver;
+use Rasuvaeff\Yii3Tenancy\HeaderTenantResolver;
+use Rasuvaeff\Yii3Tenancy\PathTenantResolver;
+use Rasuvaeff\Yii3Tenancy\SubdomainTenantResolver;
+
+new HeaderTenantResolver(headerName: 'X-Tenant-Id');          // default header
+new SubdomainTenantResolver(baseDomain: 'example.com');       // acme.example.com -> acme
+new PathTenantResolver(prefix: '/t');                         // /t/acme/x -> acme
+new CompositeTenantResolver($first, $second);                 // first non-null wins
+```
+
+### TenantProvider (swappable backend axis)
+
+```php
+use Rasuvaeff\Yii3Tenancy\ConfigTenantProvider;
+use Rasuvaeff\Yii3Tenancy\TenantProvider;       // interface: find(string): ?Tenant
+
+new ConfigTenantProvider([
+    'acme' => ['name' => 'Acme Inc', 'status' => 'active', 'attributes' => []],
+]);
+```
+
+### TenantResolutionMiddleware (PSR-15)
+
+```php
+use Rasuvaeff\Yii3Tenancy\TenantPolicy;
+use Rasuvaeff\Yii3Tenancy\TenantResolutionMiddleware;
+
+new TenantResolutionMiddleware(
+    resolver: $resolver,
+    provider: $provider,
+    currentTenant: $requestCurrentTenant,
+    responseFactory: $psr17ResponseFactory,
+    unresolvedPolicy: TenantPolicy::Reject,     // 404 | PassThrough
+    suspendedPolicy: TenantPolicy::Reject,      // 403 | PassThrough
+);
+// success: publishes to RequestCurrentTenant + Tenant::class request attribute
+```
+
+### TenantScopedCache (PSR-16 decorator)
+
+```php
+use Rasuvaeff\Yii3Tenancy\TenantScopedCache;
+
+$cache = new TenantScopedCache($innerPsr16, $currentTenant);
+$cache->set('report', $data);   // stored under "t.{tenantId}.report"
+```
+
+### DI (config-plugin)
+
+Ships config/di.php + config/params.php. Binds CurrentTenant, resolvers,
+middleware; does NOT bind TenantProvider. Params key: `rasuvaeff/yii3-tenancy`
+(`header`, `base_domain`, `path_prefix`, `resolvers`, `unresolved_policy`,
+`suspended_policy`).
