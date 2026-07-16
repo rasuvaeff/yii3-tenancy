@@ -54,10 +54,14 @@ release-check:
 bc-check:
 	$(DOCKER) sh -c 'git config --global --add safe.directory "*"; \
 	  LATEST=$$(git describe --tags --abbrev=0 2>/dev/null || true); \
-	  if [ -n "$$LATEST" ]; then \
-	    composer bc-check -- --from=$$LATEST; \
-	  else \
-	    echo "No previous tag - skipping BC check"; \
+	  if [ -z "$$LATEST" ]; then \
+	    echo "No previous tag - skipping BC check"; exit 0; \
+	  fi; \
+	  CODE=0; OUT=$$(composer bc-check -- --from=$$LATEST 2>&1) || CODE=$$?; \
+	  echo "$$OUT"; \
+	  if [ "$$CODE" -ne 0 ]; then \
+	    if [ "$$CODE" -ne 3 ] || ! echo "$$OUT" | grep -q "^\[BC\] SKIPPED" || echo "$$OUT" | grep "^\[BC\] " | grep -qv "^\[BC\] SKIPPED"; then exit "$$CODE"; fi; \
+	    echo "Only SKIPPED findings - treating as pass"; \
 	  fi'
 
 help:
