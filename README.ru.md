@@ -1,4 +1,5 @@
-# Расуваефф/yii3-аренда
+# rasuvaeff/yii3-tenancy
+
 [![Stable Version](https://img.shields.io/packagist/v/rasuvaeff/yii3-tenancy?label=stable&sort_semver=1)](https://packagist.org/packages/rasuvaeff/yii3-tenancy)
 [![Total Downloads](https://img.shields.io/packagist/dt/rasuvaeff/yii3-tenancy)](https://packagist.org/packages/rasuvaeff/yii3-tenancy)
 [![Build](https://img.shields.io/github/actions/workflow/status/rasuvaeff/yii3-tenancy/build.yml?branch=master)](https://github.com/rasuvaeff/yii3-tenancy/actions)
@@ -6,26 +7,37 @@
 [![Psalm level](https://img.shields.io/badge/psalm-level%201-141F48?logo=psalm&logoColor=white)](https://github.com/rasuvaeff/yii3-tenancy/blob/master/psalm.xml)
 [![PHP](https://img.shields.io/packagist/dependency-v/rasuvaeff/yii3-tenancy/php)](https://packagist.org/packages/rasuvaeff/yii3-tenancy)
 [![License](https://img.shields.io/packagist/l/rasuvaeff/yii3-tenancy)](LICENSE.md)
-Ядро мультиарендности для Yii3: разрешение арендаторов на основе запроса
- (заголовок/поддомен/путь), контекст CurrentTenant в области запроса и определение области действия примитивов
-. Намеренно **никакой магии автоматического определения области ORM** — вместо этого явные примитивы
- и рецепты.
+[English version](README.md)
 
- > **Используете помощника по кодированию с использованием искусственного интеллекта?** [llms.txt](llms.txt) содержит компактную ссылку
- > API, которой вы можете поделиться с моделью. Авторы: см. [AGENTS.md](AGENTS.md). @@ЛИНИЯ@@
+Ядро multi-tenancy для Yii3: резолвинг тенанта из запроса
+(header/subdomain/path), request-scoped контекст `CurrentTenant` и примитивы
+скопирования. Намеренно **без ORM-магии авто-скопирования** — только явные
+примитивы и рецепты.
+
+> **Используете AI-ассистента?** В [llms.txt](llms.txt) — компактный
+> API-справочник, которым можно поделиться с моделью. Контрибьюторам: см.
+> [AGENTS.md](AGENTS.md).
+
 ## Требования
+
 | Требование | Версия |
- |-------------|---------|
- | PHP | 8,3 – 8,5 |
- | ПСР-7/ПСР-15/ПСР-17/ПСР-16 | любая реализация | @@ЛИНИЯ@@
+|-------------|---------|
+| PHP | 8.3 – 8.5 |
+| PSR-7 / PSR-15 / PSR-17 / PSR-16 | любая реализация |
+
 ## Установка
+
 ```bash
 composer require rasuvaeff/yii3-tenancy
 ```
-Для постоянного хранилища арендаторов добавьте серверную часть БД (планируется:
- `rasuvaeff/yii3-tenancy-db`) или привяжите свой собственный `TenantProvider`. @@ЛИНИЯ@@
+
+Для персистентного хранения тенантов добавьте DB-бэкенд (планируется
+`rasuvaeff/yii3-tenancy-db`) или биндите свой `TenantProvider`.
+
 ## Использование
-### Промежуточное программное обеспечение разрешения
+
+### Middleware резолвинга
+
 ```php
 use Rasuvaeff\Yii3Tenancy\ConfigTenantProvider;
 use Rasuvaeff\Yii3Tenancy\HeaderTenantResolver;
@@ -41,27 +53,32 @@ $middleware = new TenantResolutionMiddleware(
     responseFactory: $psr17Factory,
 );
 ```
-Поместите его в конвейер промежуточного программного обеспечения **перед** аутентификацией — клиент
- обычно определяет хранилище пользователей. В случае успеха арендатор публикуется дважды:
 
- — сервис CurrentTenant (внедрите его в любое место конструктором);
- — атрибут запроса `Tenant::class`.
+Ставьте его в pipeline middleware-ов **до** аутентификации — тенант обычно
+определяет user store. При успехе тенант публикуется в двух местах:
 
- Неразрешенный/неизвестный ключ → `404`; приостановлен арендатор → `403`. Обе политики являются политиками
- (`TenantPolicy::Reject` | `TenantPolicy::PassThrough`). @@ЛИНИЯ@@
-### Резольверы
-| Резольвер | Источник | Пример |
- |---|---|---|
- | `HeaderTenantResolver` | Заголовок `X-Tenant-Id` (настраиваемый) | `X-Tenant-Id: acme` |
- | `SubdomainTenantResolver` | первая метка в настроенном базовом домене | `acme.example.com` |
- | `PathTenantResolver` | первый сегмент после настроенного префикса | `/t/acme/dashboard` |
- | `CompositeTenantResolver` | цепочка, первые ненулевые выигрыши | заголовок, затем субдомен |
+- сервис `CurrentTenant` (инжектить куда угодно через конструктор);
+- request-атрибут `Tenant::class`.
 
- Каждый преобразователь проверяет извлеченный ключ на соответствие `Tenant::isValidId()`
- (`/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/`) и возвращает `null` в случае несоответствия — ключи
-, взятые из запросов, являются ненадежными входными данными. Вложенные поддомены
- (`a.b.example.com`) и похожие хосты (`acmeexample.com`) разрешаются в `null`. @@ЛИНИЯ@@
-### Чтение текущего арендатора
+Неразрезолвленный/неизвестный ключ → `404`; заблокированный тенант → `403`. Оба
+— политики (`TenantPolicy::Reject` | `TenantPolicy::PassThrough`).
+
+### Резолверы
+
+| Резолвер | Источник | Пример |
+|---|---|---|
+| `HeaderTenantResolver` | header `X-Tenant-Id` (настраиваемый) | `X-Tenant-Id: acme` |
+| `SubdomainTenantResolver` | первая label под настроенным базовым доменом | `acme.example.com` |
+| `PathTenantResolver` | первый сегмент после настроенного префикса | `/t/acme/dashboard` |
+| `CompositeTenantResolver` | цепочка, выигрывает первый non-null | header, затем subdomain |
+
+Каждый резолвер валидирует извлечённый ключ через `Tenant::isValidId()`
+(`/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/`) и возвращает `null` при несовпадении —
+ключи из запроса это untrusted input. Вложенные subdomain-ы
+(`a.b.example.com`) и look-alike хосты (`acmeexample.com`) резолвятся в `null`.
+
+### Чтение текущего тенанта
+
 ```php
 use Rasuvaeff\Yii3Tenancy\CurrentTenant;
 
@@ -76,22 +93,27 @@ final readonly class InvoiceService
     }
 }
 ```
-Для контекстов консоли/теста, где один процесс обрабатывает несколько клиентов, используйте
- `RequestCurrentTenant::override()`. @@ЛИНИЯ@@
-### Кэш на уровне клиента
+
+Для консольных/тестовых контекстов, где один процесс обслуживает несколько
+тенантов, используйте `RequestCurrentTenant::override()`.
+
+### Tenant-scoped кэш
+
 ```php
 use Rasuvaeff\Yii3Tenancy\TenantScopedCache;
 
 $cache = new TenantScopedCache($psr16Cache, $currentTenant);
 $cache->set('report', $data);   // stored as "t.acme.report"
 ```
-> `clear()` делегирует внутренний кеш и очищает **все** арендаторов — PSR-16
- > не имеет очистки с префиксной областью. Не вызывайте его в путях кода на уровне клиента. @@ЛИНИЯ@@
-### Конфигурация DI (Yii3)
-Поставляется `config/di.php` + `config/params.php` через `config-plugin`. Ядро
- связывает CurrentTenant, преобразователи и промежуточное программное обеспечение. **`TenantProvider`
- намеренно не привязан** — его привязывает ровно один источник: серверный пакет
- или ваше приложение:
+
+> `clear()` делегирует во внутренний кэш и вычищает **всех** тенантов — у PSR-16
+> нет prefix-scoped clear. Не вызывайте его в tenant-scoped коде.
+
+### DI-конфигурация (Yii3)
+
+Пакет несёт `config/di.php` + `config/params.php` через `config-plugin`. Ядро
+биндит `CurrentTenant`, резолверы и middleware. **`TenantProvider` намеренно не
+биндится** — его биндит ровно один источник: backend-пакет или приложение:
 
 ```php
 // config/common/di/tenancy.php
@@ -104,6 +126,7 @@ return [
     ]),
 ];
 ```
+
 При необходимости переопределите параметры:
 
 ```php
@@ -122,7 +145,9 @@ return [
     ],
 ];
 ```
-### Рецепты: подключение к экосистеме rasuvaeff/*
+
+### Рецепты: интеграция в экосистему rasuvaeff/*
+
 ```php
 // feature flags: tenant-aware FlagContext
 FlagContext::class => static fn (CurrentTenant $t): FlagContext =>
@@ -135,47 +160,63 @@ $builder->withMandatoryFilter(column: 'tenant_id', value: $currentTenant->get()-
 CacheInterface::class => static fn (CacheInterface $inner, CurrentTenant $t): CacheInterface =>
     new TenantScopedCache($inner, $t),
 ```
-## Компоненты
-### `Арендатор`
-| Недвижимость | Тип | Описание |
- |---|---|---|
- | `идентификатор` | `строка` | проверено: `/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/` |
- | `имя` | `строка` | необязательное отображаемое имя |
- | `статус` | `ТенантСтатус` | `Активный` (по умолчанию) / `Приостановлен` |
- | `атрибуты` | `массив<строка, смешанный>` | метаданные арендатора в свободной форме | @@ЛИНИЯ@@
-### `CurrentTenant` / `RequestCurrentTenant`
-Читатели зависят от интерфейса CurrentTenant (get(), find(),
-isResolved()); промежуточное программное обеспечение зависит от конкретного `RequestCurrentTenant`
- (`set()` один раз для каждого запроса,`override()` для консоли/тестов). @@ЛИНИЯ@@
-### `TenantResolutionMiddleware`
-| Параметр | Тип | По умолчанию | Описание |
- |---|---|---|---|
- | `резольвер` | `TenantResolver` | — | извлечение ключей |
- | `провайдер` | `ТенантПровайдер` | — | ключ → Поиск «Арендатора» |
- | `текущийТенант` | `RequestCurrentTenant` | — | цель публикации |
- | `responseFactory` | `ResponseFactoryInterface` | — | строит 404/403 |
- | `unresolvedPolicy` | `ТенантПолиси` | `Отклонить` | неразрешенный/неизвестный ключ |
- | `приостановленная политика` | `ТенантПолиси` | `Отклонить` | приостановлен арендатор | @@ЛИНИЯ@@
-## Безопасность
-- Ключи арендатора, извлеченные из запросов, являются **ненадежными входными данными** — каждый преобразователь
- проверяет соответствие строгому шаблону белого списка перед поиском.
- — разрешение поддомена соответствует только настроенному базовому домену, а не
- только необработанному значению `Host`; вложенные метки отклоняются.
- — неявного резервного варианта «клиента по умолчанию» не существует — неразрешенные запросы
- отклоняются, если вы явно не выберете `passthrough`.
- - Пакет сам не выполняет ввод-вывод, SQL или доступ к оболочке. @@ЛИНИЯ@@
-## Примеры
-См. [examples/](examples/) для работоспособного сценария.
 
- | Скрипт | Шоу | Нужен сервер? |
- |--------|-------|:-------------:|
- | [`resolve-tenant.php`](examples/resolve-tenant.php) | Разрешение, атрибут запроса, политики 404/403 | нет | @@ЛИНИЯ@@
+## Компоненты
+
+### `Tenant`
+
+| Поле | Тип | Описание |
+|---|---|---|
+| `id` | `string` | валидируется: `/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/` |
+| `name` | `string` | опциональное отображаемое имя |
+| `status` | `TenantStatus` | `Active` (по умолчанию) / `Suspended` |
+| `attributes` | `array<string, mixed>` | произвольные метаданные тенанта |
+
+### `CurrentTenant` / `RequestCurrentTenant`
+
+Читатели зависят от интерфейса `CurrentTenant` (`get()`, `find()`,
+`isResolved()`); middleware зависит от конкретного `RequestCurrentTenant`
+(`set()` один раз за запрос, `override()` для консоли/тестов).
+
+### `TenantResolutionMiddleware`
+
+| Параметр | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `resolver` | `TenantResolver` | — | извлечение ключа |
+| `provider` | `TenantProvider` | — | lookup ключ → `Tenant` |
+| `currentTenant` | `RequestCurrentTenant` | — | цель публикации |
+| `responseFactory` | `ResponseFactoryInterface` | — | строит 404/403 |
+| `unresolvedPolicy` | `TenantPolicy` | `Reject` | неразрезолвленный/неизвестный ключ |
+| `suspendedPolicy` | `TenantPolicy` | `Reject` | заблокированный тенант |
+
+## Безопасность
+
+- Ключи тенантов, извлечённые из запроса — **untrusted input**: каждый резолвер
+  валидирует их по строгому whitelist-паттерну перед lookup-ом.
+- Резолвинг subdomain-а матчится только по настроенному базовому домену, никогда
+  — по сырому `Host` как есть; вложенные label-ы отклоняются.
+- Неявного фолбэка на «тенант по умолчанию» нет — неразрезолвленные запросы
+  отклоняются, если вы явно не включили `passthrough`.
+- Пакет сам не делает I/O, SQL и не обращается к shell.
+
+## Примеры
+
+См. [examples/](examples/) — запускаемый скрипт.
+
+| Скрипт | Показывает | Нужен сервер? |
+|--------|-------|:-------------:|
+| [`resolve-tenant.php`](examples/resolve-tenant.php) | Резолвинг, request-атрибут, политики 404/403 | нет |
+
 ## Разработка
-На хосте нет PHP/Composer — запустите в Docker через образ `composer:2`:
+
+На хосте нет PHP/Composer — запускайте через Docker-образ `composer:2`:
 
 ```bash
 docker run --rm -v "$PWD":/app -w /app composer:2 composer build
 ```
-Или с помощью Make: make build, make cs-fix, make psalm, make test. @@ЛИНИЯ@@
+
+Или через Make: `make build`, `make cs-fix`, `make psalm`, `make test`.
+
 ## Лицензия
-BSD-3-пункт. См. [LICENSE.md](LICENSE.md).
+
+BSD-3-Clause. См. [LICENSE.md](LICENSE.md).
