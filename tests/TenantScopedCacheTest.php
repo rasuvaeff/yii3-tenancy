@@ -104,7 +104,7 @@ final class TenantScopedCacheTest
     }
 
     /** @return array<string, ArbitraryInterface> */
-    private function distinctTenantsNeverShareEntriesGenerators(): array
+    public static function distinctTenantsNeverShareEntriesGenerators(): array
     {
         $idChars = Gen::map(
             new ArrayArbitrary(Gen::oneOf('a', 'z', '0', '9', '-', '_'), 0, 10),
