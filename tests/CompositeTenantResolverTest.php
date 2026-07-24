@@ -63,7 +63,7 @@ final class CompositeTenantResolverTest
     }
 
     /** @return array<string, ArbitraryInterface> */
-    private function headerWinsOverPathForAnyValidIdsGenerators(): array
+    public static function headerWinsOverPathForAnyValidIdsGenerators(): array
     {
         return [
             'headerId' => self::tenantIdGenerator(),
