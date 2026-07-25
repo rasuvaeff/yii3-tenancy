@@ -75,7 +75,7 @@ Unresolved/unknown key → `404`; suspended tenant → `403`. Both are policies
 | `CompositeTenantResolver` | chain, first non-null wins | header, then subdomain |
 
 Every resolver validates the extracted key against `Tenant::isValidId()`
-(`/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/`) and returns `null` on mismatch —
+(`/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}\z/`) and returns `null` on mismatch —
 keys taken from requests are untrusted input. Nested subdomains
 (`a.b.example.com`) and lookalike hosts (`acmeexample.com`) resolve to `null`.
 
@@ -170,7 +170,7 @@ CacheInterface::class => static fn (CacheInterface $inner, CurrentTenant $t): Ca
 
 | Property | Type | Description |
 |---|---|---|
-| `id` | `string` | validated: `/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/` |
+| `id` | `string` | validated: `/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}\z/` |
 | `name` | `string` | optional display name |
 | `status` | `TenantStatus` | `Active` (default) / `Suspended` |
 | `attributes` | `array<string, mixed>` | free-form tenant metadata |

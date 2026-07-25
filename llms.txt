@@ -12,7 +12,7 @@ composer require rasuvaeff/yii3-tenancy
 ## Rules
 
 - Tenant keys from requests are untrusted: every resolver validates against
-  `Tenant::isValidId()` (`/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/`) and returns
+  `Tenant::isValidId()` (`/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}\z/`) and returns
   `null` on mismatch.
 - The core never binds `TenantProvider` in DI — a backend package or the
   application binds it (exactly one source).

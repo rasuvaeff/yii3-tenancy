@@ -69,5 +69,6 @@ final class TenantTest
         yield 'colon' => ['acme:1'];
         yield 'too long 65' => [str_repeat('a', 65)];
         yield 'cyrillic' => ['клиент'];
+        yield 'trailing newline' => ["acme\n"];
     }
 }
