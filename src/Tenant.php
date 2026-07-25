@@ -11,7 +11,7 @@ use InvalidArgumentException;
  */
 final readonly class Tenant
 {
-    private const string ID_PATTERN = '/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/';
+    private const string ID_PATTERN = '/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}\z/';
 
     /**
      * @param array<string, mixed> $attributes

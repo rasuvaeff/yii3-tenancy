@@ -76,7 +76,7 @@ $middleware = new TenantResolutionMiddleware(
 | `CompositeTenantResolver` | цепочка, выигрывает первый non-null | header, затем subdomain |
 
 Каждый резолвер валидирует извлечённый ключ через `Tenant::isValidId()`
-(`/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/`) и возвращает `null` при несовпадении —
+(`/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}\z/`) и возвращает `null` при несовпадении —
 ключи из запроса это untrusted input. Вложенные subdomain-ы
 (`a.b.example.com`) и look-alike хосты (`acmeexample.com`) резолвятся в `null`.
 
@@ -170,7 +170,7 @@ CacheInterface::class => static fn (CacheInterface $inner, CurrentTenant $t): Ca
 
 | Поле | Тип | Описание |
 |---|---|---|
-| `id` | `string` | валидируется: `/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/` |
+| `id` | `string` | валидируется: `/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}\z/` |
 | `name` | `string` | опциональное отображаемое имя |
 | `status` | `TenantStatus` | `Active` (по умолчанию) / `Suspended` |
 | `attributes` | `array<string, mixed>` | произвольные метаданные тенанта |
