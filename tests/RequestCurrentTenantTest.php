@@ -15,6 +15,7 @@ use Testo\Test;
 
 #[Test]
 #[Covers(RequestCurrentTenant::class)]
+#[Covers(TenantNotResolvedException::class)]
 final class RequestCurrentTenantTest
 {
     public function startsUnresolved(): void
