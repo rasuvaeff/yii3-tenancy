@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Rasuvaeff\Yii3Tenancy\Tests;
 
 use Nyholm\Psr7\ServerRequest;
-use Rasuvaeff\PropertyTesting\Arbitrary\ArrayArbitrary;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
 use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\PropertyTesting\Property;
@@ -71,14 +70,27 @@ final class CompositeTenantResolverTest
         ];
     }
 
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function headerWinsOverPathForAnyValidIdsExamples(): iterable
+    {
+        // Precedence has to hold when the two agree, when one is a prefix of
+        // the other, and at the shortest legal id — the cases where a resolver
+        // that concatenated or compared instead of choosing would still look
+        // right.
+        yield 'both the same' => ['acme', 'acme'];
+        yield 'path id is a prefix of the header id' => ['acmecorp', 'acme'];
+        yield 'header id is a prefix of the path id' => ['acme', 'acmecorp'];
+        yield 'shortest legal ids' => ['a', 'z'];
+    }
+
     private static function tenantIdGenerator(): ArbitraryInterface
     {
-        return Gen::map(
-            Gen::tuple(
-                Gen::oneOf('a', 'z', 'A', '0', '9'),
-                new ArrayArbitrary(Gen::oneOf('a', 'b', 'z', 'A', 'Z', '0', '9', '-', '_'), 0, 20),
-            ),
-            static fn(array $parts): string => $parts[0] . implode('', $parts[1]),
-        );
+        // The identifier format spelled once, as the pattern it is, instead of
+        // a first character tupled with an array of the rest and imploded.
+        // Gen::regex() builds only strings the resolvers accept, so no run is
+        // spent on a value that would be discarded.
+        return Gen::regex('[azA09][abzAZ09_-]{0,20}');
     }
 }
