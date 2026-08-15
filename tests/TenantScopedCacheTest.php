@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Rasuvaeff\Yii3Tenancy\Tests;
 
-use Rasuvaeff\PropertyTesting\Arbitrary\ArrayArbitrary;
 use Rasuvaeff\PropertyTesting\ArbitraryInterface;
+use Rasuvaeff\PropertyTesting\Classify;
 use Rasuvaeff\PropertyTesting\Gen;
 use Rasuvaeff\PropertyTesting\Property;
 use Rasuvaeff\Yii3Tenancy\Exception\TenantNotResolvedException;
@@ -106,18 +106,56 @@ final class TenantScopedCacheTest
     /** @return array<string, ArbitraryInterface> */
     public static function distinctTenantsNeverShareEntriesGenerators(): array
     {
-        $idChars = Gen::map(
-            new ArrayArbitrary(Gen::oneOf('a', 'z', '0', '9', '-', '_'), 0, 10),
-            static fn(array $chars): string => implode('', $chars),
-        );
-
+        // Gen::stringFrom() over the same alphabets, instead of mapping an
+        // array of single characters through implode(): one generator rather
+        // than two, and shrinking walks the string's length directly.
         return [
-            'suffixA' => $idChars,
-            'suffixB' => $idChars,
-            'key' => Gen::map(
-                new ArrayArbitrary(Gen::oneOf('k', 'e', 'y', '.', '1'), 1, 10),
-                static fn(array $chars): string => implode('', $chars),
-            ),
+            'suffixA' => Gen::stringFrom('az09-_', minLength: 0, maxLength: 10),
+            'suffixB' => Gen::stringFrom('az09-_', minLength: 0, maxLength: 10),
+            'key' => Gen::stringFrom('key.1', minLength: 1, maxLength: 10),
+        ];
+    }
+
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function distinctTenantsNeverShareEntriesExamples(): iterable
+    {
+        // PSR-16 reserves `:` in keys, so a prefix scheme has to use something
+        // else — and the separator is exactly where two tenant ids can be made
+        // to collide. "a" + "b.x" and "ab" + ".x" must not meet.
+        yield 'identical suffixes' => ['', '', 'key'];
+        yield 'suffix containing the separator character' => ['-', '', 'key'];
+        yield 'key that looks like a prefixed key' => ['', '', 'a.key'];
+        yield 'longest allowed ids' => ['zzzzzzzzzz', 'zzzzzzzzzz', 'k'];
+    }
+
+    #[Property(runs: 200)]
+    public function oneTenantAlwaysSeesItsOwnEntry(string $suffix, string $key, int $value): void
+    {
+        $tenantId = 't' . $suffix;
+        $cache = $this->cacheFor($tenantId);
+
+        Assert::true($cache->set($key, $value));
+
+        Classify::when($suffix === '', 'shortest tenant id');
+
+        // The counterpart to the isolation property: a prefix scheme that
+        // isolated tenants by mangling keys beyond recognition would satisfy
+        // "never share" and still be useless.
+        Assert::true($cache->has($key));
+        Assert::same($cache->get($key), $value);
+        Assert::true($cache->delete($key));
+        Assert::false($cache->has($key));
+    }
+
+    /** @return array<string, ArbitraryInterface> */
+    public static function oneTenantAlwaysSeesItsOwnEntryGenerators(): array
+    {
+        return [
+            'suffix' => Gen::stringFrom('az09-_', minLength: 0, maxLength: 10),
+            'key' => Gen::stringFrom('key.1', minLength: 1, maxLength: 10),
+            'value' => Gen::int(),
         ];
     }
 
