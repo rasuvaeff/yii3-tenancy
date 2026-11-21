@@ -24,7 +24,7 @@ and recipes instead.
 
 | Requirement | Version |
 |-------------|---------|
-| PHP | 8.3 – 8.5 |
+| PHP | 8.3 – 8.6 |
 | PSR-7 / PSR-15 / PSR-17 / PSR-16 | any implementation |
 
 ## Installation
