@@ -59,7 +59,7 @@ final class ConfigWiringTest
     private function di(): array
     {
         /** @var array<string, mixed> $params */
-        $params = require dirname(__DIR__) . '/config/params.php';
+        $params = require __DIR__ . '/../config/params.php';
 
         return (static fn(array $params): array => require dirname(__DIR__, 1) . '/config/di.php')($params);
     }
