@@ -26,7 +26,7 @@ Deliberately no ORM auto-scoping magic.
    $tenantId = $currentTenant->get()->id; // then bind it in EVERY query
    ```
 2. **Tenant keys from requests are untrusted.** Resolvers validate against
-   `Tenant::isValidId()` (`/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/`) and return
+   `Tenant::isValidId()` (`/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}\z/`) and return
    `null` on mismatch. Never construct a `Tenant` from an unvalidated key.
 3. **The core never binds `TenantProvider` in DI.** Exactly one source binds
    it: the backend package (`rasuvaeff/yii3-tenancy-db`) or the application —
